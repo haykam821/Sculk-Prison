@@ -1,0 +1,25 @@
+{
+	"schemaVersion": 1,
+	"id": "sculkprison",
+	"version": "${version}",
+	"name": "Sculk Prison",
+	"description": "A warden avoidance minigame for Minecraft.",
+	"authors": [
+		"haykam821"
+	],
+	"contact": {
+		"homepage": "https://github.com/haykam821/Sculk-Prison#readme",
+		"issues": "https://github.com/haykam821/Sculk-Prison/issues"
+	},
+	"entrypoints": {
+		"main": [
+			"io.github.haykam821.sculkprison.Main"
+		]
+	},
+	"license": "MIT",
+	"icon": "assets/sculkprison/icon.png",
+	"depends": {
+		"fabricloader": ">=0.4.0",
+		"plasmid": ">=0.4.0"
+	}
+}

@@ -1,0 +1,21 @@
+{
+	"name": "sculkprison:rooms",
+	"fallback": "sculkprison:walls",
+	"elements": [{
+		"weight": 1,
+		"element": {
+			"element_type": "minecraft:single_pool_element",
+			"location": "sculkprison:dinner_table",
+			"projection": "rigid",
+			"processors": []
+		}
+	}, {
+		"weight": 1,
+		"element": {
+			"element_type": "minecraft:single_pool_element",
+			"location": "sculkprison:water_paths",
+			"projection": "rigid",
+			"processors": []
+		}
+	}]
+}

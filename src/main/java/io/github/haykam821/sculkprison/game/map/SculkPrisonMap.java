@@ -1,0 +1,28 @@
+package io.github.haykam821.sculkprison.game.map;
+
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.structure.Structure;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.gen.chunk.ChunkGenerator;
+import xyz.nucleoid.plasmid.util.BlockBounds;
+
+public final class SculkPrisonMap {
+	public static final Vec3d SPAWN = new Vec3d(7, 65.06250, 4);
+	public static final Vec3d WARDEN_SPAWN = new Vec3d(7, 66, 10);
+	public static final BlockBounds WARDEN_CAGE = new BlockBounds(new BlockPos(8, 65, 8), new BlockPos(5, 69, 11));
+
+	private final Structure structure;
+
+	public SculkPrisonMap(Structure structure) {
+		this.structure = structure;
+	}
+	
+	public Structure getStructure() {
+		return this.structure;
+	}
+
+	public ChunkGenerator createGenerator(MinecraftServer server) {
+		return new SculkPrisonChunkGenerator(server, this.structure);
+	}
+}

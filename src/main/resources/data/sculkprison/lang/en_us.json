@@ -1,0 +1,10 @@
+{
+	"gameType.sculkprison.sculk_prison": "Sculk Prison",
+	"text.sculkprison.cage_locked": "Cage Locked - Hide",
+	"text.sculkprison.cage_unlocked": "Cage Unlocked - Survive",
+	"text.sculkprison.eliminated": "%s has been eliminated!",
+	"text.sculkprison.eliminated.out_of_bounds": "%s has been eliminated by going out of bounds!",
+	"text.sculkprison.eliminated.warden": "%s has been eliminated by %s!",
+	"text.sculkprison.no_winners": "Nobody won the game!",
+	"text.sculkprison.win": "The %s team has won the game!"
+}
