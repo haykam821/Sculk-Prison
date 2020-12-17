@@ -6,5 +6,7 @@
 	"text.sculkprison.eliminated.out_of_bounds": "%s has been eliminated by going out of bounds!",
 	"text.sculkprison.eliminated.warden": "%s has been eliminated by %s!",
 	"text.sculkprison.no_winners": "Nobody won the game!",
-	"text.sculkprison.win": "The %s team has won the game!"
+	"text.sculkprison.win": "The %s team has won the game!",
+	"text.sculkprison.win.players": "Players",
+	"text.sculkprison.win.warden": "Warden"
 }
