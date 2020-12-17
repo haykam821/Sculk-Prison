@@ -1,5 +1,8 @@
 package io.github.haykam821.sculkprison.game.map;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import io.github.haykam821.sculkprison.Main;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -19,13 +22,9 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.feature.StructurePoolFeatureConfig;
 import xyz.nucleoid.plasmid.game.world.generator.GameChunkGenerator;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
 public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 	private static final BlockPos ORIGIN = new BlockPos(0, 64, 0);
-	private static final Random RANDOM = new Random();
+	private static final OneDirectionRandom RANDOM = new OneDirectionRandom();
 	private static final Identifier PRISON_STARTS_ID = new Identifier(Main.MOD_ID, "prison_starts");
 	private static final int MAX_DEPTH = 16;
 
@@ -45,6 +44,7 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 		}, MAX_DEPTH);
 
 		List<PoolStructurePiece> pieces = new ArrayList<>();
+		RANDOM.enforceOneDirectionNext();
 		StructurePoolBasedGenerator.method_30419(this.registryManager, config, PoolStructurePiece::new, this, this.structureManager, ORIGIN, pieces, RANDOM, false, false);
 
 		this.addStructurePieces(pieces);
