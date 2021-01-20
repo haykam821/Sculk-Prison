@@ -13,7 +13,7 @@ jobs:
         path: |
           ~/.gradle/loom-cache
           ~/.gradle/caches
-        key: gradle-${{hashFiles("**/*.gradle*")}}
+        key: gradle-${{hashFiles('**/*.gradle*')}}
         restore-keys: gradle-
     - name: Checkout
       uses: actions/checkout@v2
