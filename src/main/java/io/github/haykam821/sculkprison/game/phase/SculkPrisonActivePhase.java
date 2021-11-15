@@ -38,7 +38,6 @@ import xyz.nucleoid.plasmid.game.event.PlayerAddListener;
 import xyz.nucleoid.plasmid.game.event.PlayerDeathListener;
 import xyz.nucleoid.plasmid.game.event.PlayerRemoveListener;
 import xyz.nucleoid.plasmid.game.rule.GameRule;
-import xyz.nucleoid.plasmid.game.rule.RuleResult;
 import xyz.nucleoid.plasmid.widget.GlobalWidgets;
 
 public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseListener, GameOpenListener, GameTickListener, PlayerAddListener, PlayerDeathListener, PlayerRemoveListener {
@@ -70,17 +69,22 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 		this.surviveTime = this.config.getSurviveTime();
 	}
 
-	public static void setRules(GameLogic game, RuleResult pvpRule) {
-		game.setRule(GameRule.BLOCK_DROPS, RuleResult.DENY);
-		game.setRule(GameRule.BREAK_BLOCKS, RuleResult.DENY);
-		game.setRule(GameRule.CRAFTING, RuleResult.DENY);
-		game.setRule(GameRule.FALL_DAMAGE, RuleResult.DENY);
-		game.setRule(GameRule.HUNGER, RuleResult.DENY);
-		game.setRule(GameRule.INTERACTION, RuleResult.DENY);
-		game.setRule(GameRule.PLACE_BLOCKS, RuleResult.DENY);
-		game.setRule(GameRule.PORTALS, RuleResult.DENY);
-		game.setRule(GameRule.PVP, pvpRule);
-		game.setRule(GameRule.THROW_ITEMS, RuleResult.DENY);
+	public static void setRules(GameLogic game, boolean pvp) {
+		game.deny(GameRule.BLOCK_DROPS);
+		game.deny(GameRule.BREAK_BLOCKS);
+		game.deny(GameRule.CRAFTING);
+		game.deny(GameRule.FALL_DAMAGE);
+		game.deny(GameRule.HUNGER);
+		game.deny(GameRule.INTERACTION);
+		game.deny(GameRule.PLACE_BLOCKS);
+		game.deny(GameRule.PORTALS);
+		game.deny(GameRule.THROW_ITEMS);
+
+		if (pvp) {
+			game.allow(GameRule.PVP);
+		} else {
+			game.deny(GameRule.PVP);
+		}
 	}
 
 	public static void open(GameSpace gameSpace, SculkPrisonMap map, SculkPrisonConfig config) {
@@ -88,16 +92,16 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 			GlobalWidgets widgets = new GlobalWidgets(game);
 
 			SculkPrisonActivePhase phase = new SculkPrisonActivePhase(gameSpace, map, config, Lists.newArrayList(gameSpace.getPlayers()), widgets);
-			SculkPrisonActivePhase.setRules(game, RuleResult.ALLOW);
+			SculkPrisonActivePhase.setRules(game, true);
 
 			// Listeners
-			game.on(AttackEntityListener.EVENT, phase);
-			game.on(GameCloseListener.EVENT, phase);
-			game.on(GameOpenListener.EVENT, phase);
-			game.on(GameTickListener.EVENT, phase);
-			game.on(PlayerAddListener.EVENT, phase);
-			game.on(PlayerDeathListener.EVENT, phase);
-			game.on(PlayerRemoveListener.EVENT, phase);
+			game.listen(AttackEntityListener.EVENT, phase);
+			game.listen(GameCloseListener.EVENT, phase);
+			game.listen(GameOpenListener.EVENT, phase);
+			game.listen(GameTickListener.EVENT, phase);
+			game.listen(PlayerAddListener.EVENT, phase);
+			game.listen(PlayerDeathListener.EVENT, phase);
+			game.listen(PlayerRemoveListener.EVENT, phase);
 		});
 	}
 

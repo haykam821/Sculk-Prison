@@ -16,7 +16,6 @@ import xyz.nucleoid.plasmid.game.StartResult;
 import xyz.nucleoid.plasmid.game.event.PlayerAddListener;
 import xyz.nucleoid.plasmid.game.event.PlayerDeathListener;
 import xyz.nucleoid.plasmid.game.event.RequestStartListener;
-import xyz.nucleoid.plasmid.game.rule.RuleResult;
 
 public class SculkPrisonWaitingPhase implements PlayerAddListener, PlayerDeathListener, RequestStartListener {
 	private final GameSpace gameSpace;
@@ -38,15 +37,15 @@ public class SculkPrisonWaitingPhase implements PlayerAddListener, PlayerDeathLi
 			.setDefaultGameMode(GameMode.ADVENTURE);
 
 		return context.createOpenProcedure(worldConfig, game -> {
-			SculkPrisonWaitingPhase phase = new SculkPrisonWaitingPhase(game.getSpace(), map, context.getConfig());
+			SculkPrisonWaitingPhase phase = new SculkPrisonWaitingPhase(game.getGameSpace(), map, context.getConfig());
 
 			GameWaitingLobby.applyTo(game, context.getConfig().getPlayerConfig());
-			SculkPrisonActivePhase.setRules(game, RuleResult.DENY);
+			SculkPrisonActivePhase.setRules(game, false);
 
 			// Listeners
-			game.on(PlayerAddListener.EVENT, phase);
-			game.on(PlayerDeathListener.EVENT, phase);
-			game.on(RequestStartListener.EVENT, phase);
+			game.listen(PlayerAddListener.EVENT, phase);
+			game.listen(PlayerDeathListener.EVENT, phase);
+			game.listen(RequestStartListener.EVENT, phase);
 		});
 	}
 
