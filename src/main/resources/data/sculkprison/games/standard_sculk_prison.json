@@ -1,6 +1,5 @@
 {
 	"type": "sculkprison:sculk_prison",
-	"name": "Sculk Prison",
 	"players": {
 		"min": 1,
 		"max": 32,

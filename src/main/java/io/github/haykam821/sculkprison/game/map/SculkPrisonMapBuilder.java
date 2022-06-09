@@ -9,7 +9,7 @@ public class SculkPrisonMapBuilder {
 	private static final Identifier START_ID = new Identifier(Main.MOD_ID, "start");
 
 	public SculkPrisonMap create(MinecraftServer server) {
-		Structure structure = server.getStructureManager().getStructure(START_ID);
+		Structure structure = server.getStructureManager().getStructure(START_ID).orElseThrow();
 		return new SculkPrisonMap(structure);
 	}
 }

@@ -3,7 +3,7 @@ package io.github.haykam821.sculkprison.game;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import xyz.nucleoid.plasmid.game.config.PlayerConfig;
+import xyz.nucleoid.plasmid.game.common.config.PlayerConfig;
 
 public class SculkPrisonConfig {
 	public static final Codec<SculkPrisonConfig> CODEC = RecordCodecBuilder.create(instance -> {

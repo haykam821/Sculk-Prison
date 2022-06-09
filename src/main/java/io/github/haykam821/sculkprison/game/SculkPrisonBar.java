@@ -4,10 +4,10 @@ import io.github.haykam821.sculkprison.game.phase.SculkPrisonActivePhase;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableText;
-import xyz.nucleoid.plasmid.widget.BossBarWidget;
-import xyz.nucleoid.plasmid.widget.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.widget.BossBarWidget;
 
-public class SculkPrisonBar implements AutoCloseable {
+public class SculkPrisonBar {
 	private static final Text CAGE_LOCKED_TEXT = new TranslatableText("text.sculkprison.cage_locked");
 	private static final Text CAGE_UNLOCKED_TEXT = new TranslatableText("text.sculkprison.cage_unlocked");
 
@@ -24,10 +24,5 @@ public class SculkPrisonBar implements AutoCloseable {
 	public void changeToSurvive() {
 		this.bar.setTitle(CAGE_UNLOCKED_TEXT);
 		this.bar.setStyle(BossBar.Color.GREEN, BossBar.Style.PROGRESS);
-	}
-
-	@Override
-	public void close() {
-		this.bar.close();
 	}
 }

@@ -10,6 +10,9 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.structure.PoolStructurePiece;
 import net.minecraft.structure.Structure;
 import net.minecraft.structure.StructureManager;
+import net.minecraft.structure.StructurePiece;
+import net.minecraft.structure.StructurePiecesHolder;
+import net.minecraft.structure.StructureStart;
 import net.minecraft.structure.pool.StructurePoolBasedGenerator;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockBox;
@@ -18,6 +21,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.registry.DynamicRegistryManager;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.ChunkRegion;
+import net.minecraft.world.HeightLimitView;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.feature.StructurePoolFeatureConfig;
 import xyz.nucleoid.plasmid.game.world.generator.GameChunkGenerator;
@@ -31,7 +35,7 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 	private final StructureManager structureManager;
 	private final DynamicRegistryManager registryManager;
 
-	private final Long2ObjectMap<List<PoolStructurePiece>> piecesByChunk = new Long2ObjectOpenHashMap<>();
+	private final Long2ObjectMap<List<StructurePiece>> piecesByChunk = new Long2ObjectOpenHashMap<>();
 
 	public SculkPrisonChunkGenerator(MinecraftServer server, Structure initialStructure) {
 		super(server);
@@ -40,28 +44,50 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 		this.structureManager = server.getStructureManager();
 
 		StructurePoolFeatureConfig config = new StructurePoolFeatureConfig(() -> {
-			return this.registryManager.get(Registry.TEMPLATE_POOL_WORLDGEN).get(PRISON_STARTS_ID);
+			return this.registryManager.get(Registry.STRUCTURE_POOL_KEY).get(PRISON_STARTS_ID);
 		}, MAX_DEPTH);
 
-		List<PoolStructurePiece> pieces = new ArrayList<>();
+		List<StructurePiece> pieces = new ArrayList<>();
+		StructurePiecesHolder holder = new StructurePiecesHolder() {
+			@Override
+			public void addPiece(StructurePiece piece) {
+				pieces.add(piece);
+			}
+
+			@Override
+			public StructurePiece getIntersecting(BlockBox box) {
+				return StructureStart.getIntersecting(pieces, box);
+			}
+		};
+
 		RANDOM.enforceOneDirectionNext();
-		StructurePoolBasedGenerator.method_30419(this.registryManager, config, PoolStructurePiece::new, this, this.structureManager, ORIGIN, pieces, RANDOM, false, false);
+		StructurePoolBasedGenerator.generate(this.registryManager, config, PoolStructurePiece::new, this, this.structureManager, ORIGIN, holder, RANDOM, false, false, new HeightLimitView() {
+			@Override
+			public int getBottomY() {
+				return this.getBottomY();
+			}
+
+			@Override
+			public int getHeight() {
+				return this.getHeight();
+			}
+		});
 
 		this.addStructurePieces(pieces);
 	}
 
-	private void addStructurePieces(List<PoolStructurePiece> pieces) {
-		for (PoolStructurePiece piece : pieces) {
+	private void addStructurePieces(List<StructurePiece> pieces) {
+		for (StructurePiece piece : pieces) {
 			BlockBox box = piece.getBoundingBox();
-			int minChunkX = box.minX >> 4;
-			int minChunkZ = box.minZ >> 4;
-			int maxChunkX = box.maxX >> 4;
-			int maxChunkZ = box.maxZ >> 4;
+			int minChunkX = box.getMinX() >> 4;
+			int minChunkZ = box.getMinZ() >> 4;
+			int maxChunkX = box.getMaxX() >> 4;
+			int maxChunkZ = box.getMaxZ() >> 4;
 
 			for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
 				for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
 					long chunkPos = ChunkPos.toLong(chunkX, chunkZ);
-					List<PoolStructurePiece> piecesByChunk = this.piecesByChunk.computeIfAbsent(chunkPos, p -> new ArrayList<>());
+					List<StructurePiece> piecesByChunk = this.piecesByChunk.computeIfAbsent(chunkPos, p -> new ArrayList<>());
 					piecesByChunk.add(piece);
 				}
 			}
@@ -74,13 +100,13 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 			return;
 		}
 
-		ChunkPos chunkPos = new ChunkPos(region.getCenterChunkX(), region.getCenterChunkZ());
-		List<PoolStructurePiece> pieces = this.piecesByChunk.remove(chunkPos.toLong());
+		ChunkPos chunkPos = region.getCenterPos();
+		List<StructurePiece> pieces = this.piecesByChunk.remove(chunkPos.toLong());
 
 		if (pieces != null) {
 			BlockBox chunkBox = new BlockBox(chunkPos.getStartX(), 0, chunkPos.getStartZ(), chunkPos.getEndX(), 255, chunkPos.getEndZ());
-			for (PoolStructurePiece piece : pieces) {
-				piece.generate(region, structures, this, RANDOM, chunkBox, ORIGIN, false);
+			for (StructurePiece piece : pieces) {
+				piece.generate(region, structures, this, RANDOM, chunkBox, chunkPos, ORIGIN);
 			}
 		}
 	}

@@ -15,7 +15,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -27,20 +26,19 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
+import xyz.nucleoid.plasmid.game.GameActivity;
 import xyz.nucleoid.plasmid.game.GameCloseReason;
-import xyz.nucleoid.plasmid.game.GameLogic;
 import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.event.AttackEntityListener;
-import xyz.nucleoid.plasmid.game.event.GameCloseListener;
-import xyz.nucleoid.plasmid.game.event.GameOpenListener;
-import xyz.nucleoid.plasmid.game.event.GameTickListener;
-import xyz.nucleoid.plasmid.game.event.PlayerAddListener;
-import xyz.nucleoid.plasmid.game.event.PlayerDeathListener;
-import xyz.nucleoid.plasmid.game.event.PlayerRemoveListener;
-import xyz.nucleoid.plasmid.game.rule.GameRule;
-import xyz.nucleoid.plasmid.widget.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.game.player.PlayerOffer;
+import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
+import xyz.nucleoid.plasmid.game.rule.GameRuleType;
+import xyz.nucleoid.stimuli.event.player.PlayerAttackEntityEvent;
+import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
-public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseListener, GameOpenListener, GameTickListener, PlayerAddListener, PlayerDeathListener, PlayerRemoveListener {
+public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActivityEvents.Enable, GameActivityEvents.Tick, GamePlayerEvents.Offer, PlayerDeathEvent, GamePlayerEvents.Remove {
 	private final ServerWorld world;
 	private final GameSpace gameSpace;
 	private final SculkPrisonMap map;
@@ -54,8 +52,8 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 	private int lockTime;
 	private int surviveTime;
 
-	public SculkPrisonActivePhase(GameSpace gameSpace, SculkPrisonMap map, SculkPrisonConfig config, List<ServerPlayerEntity> players, GlobalWidgets widgets) {
-		this.world = gameSpace.getWorld();
+	public SculkPrisonActivePhase(GameSpace gameSpace, ServerWorld world, SculkPrisonMap map, SculkPrisonConfig config, List<ServerPlayerEntity> players, GlobalWidgets widgets) {
+		this.world = world;
 		this.gameSpace = gameSpace;
 		this.map = map;
 		this.config = config;
@@ -69,39 +67,38 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 		this.surviveTime = this.config.getSurviveTime();
 	}
 
-	public static void setRules(GameLogic game, boolean pvp) {
-		game.deny(GameRule.BLOCK_DROPS);
-		game.deny(GameRule.BREAK_BLOCKS);
-		game.deny(GameRule.CRAFTING);
-		game.deny(GameRule.FALL_DAMAGE);
-		game.deny(GameRule.HUNGER);
-		game.deny(GameRule.INTERACTION);
-		game.deny(GameRule.PLACE_BLOCKS);
-		game.deny(GameRule.PORTALS);
-		game.deny(GameRule.THROW_ITEMS);
+	public static void setRules(GameActivity activity, boolean pvp) {
+		activity.deny(GameRuleType.BLOCK_DROPS);
+		activity.deny(GameRuleType.BREAK_BLOCKS);
+		activity.deny(GameRuleType.CRAFTING);
+		activity.deny(GameRuleType.FALL_DAMAGE);
+		activity.deny(GameRuleType.HUNGER);
+		activity.deny(GameRuleType.INTERACTION);
+		activity.deny(GameRuleType.PLACE_BLOCKS);
+		activity.deny(GameRuleType.PORTALS);
+		activity.deny(GameRuleType.THROW_ITEMS);
 
 		if (pvp) {
-			game.allow(GameRule.PVP);
+			activity.allow(GameRuleType.PVP);
 		} else {
-			game.deny(GameRule.PVP);
+			activity.deny(GameRuleType.PVP);
 		}
 	}
 
-	public static void open(GameSpace gameSpace, SculkPrisonMap map, SculkPrisonConfig config) {
-		gameSpace.openGame(game -> {
-			GlobalWidgets widgets = new GlobalWidgets(game);
+	public static void open(GameSpace gameSpace, ServerWorld world, SculkPrisonMap map, SculkPrisonConfig config) {
+		gameSpace.setActivity(activity -> {
+			GlobalWidgets widgets = GlobalWidgets.addTo(activity);
 
-			SculkPrisonActivePhase phase = new SculkPrisonActivePhase(gameSpace, map, config, Lists.newArrayList(gameSpace.getPlayers()), widgets);
-			SculkPrisonActivePhase.setRules(game, true);
+			SculkPrisonActivePhase phase = new SculkPrisonActivePhase(gameSpace, world, map, config, Lists.newArrayList(gameSpace.getPlayers()), widgets);
+			SculkPrisonActivePhase.setRules(activity, true);
 
 			// Listeners
-			game.listen(AttackEntityListener.EVENT, phase);
-			game.listen(GameCloseListener.EVENT, phase);
-			game.listen(GameOpenListener.EVENT, phase);
-			game.listen(GameTickListener.EVENT, phase);
-			game.listen(PlayerAddListener.EVENT, phase);
-			game.listen(PlayerDeathListener.EVENT, phase);
-			game.listen(PlayerRemoveListener.EVENT, phase);
+			activity.listen(PlayerAttackEntityEvent.EVENT, phase);
+			activity.listen(GameActivityEvents.ENABLE, phase);
+			activity.listen(GameActivityEvents.TICK, phase);
+			activity.listen(GamePlayerEvents.OFFER, phase);
+			activity.listen(PlayerDeathEvent.EVENT, phase);
+			activity.listen(GamePlayerEvents.REMOVE, phase);
 		});
 	}
 
@@ -115,14 +112,9 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 	}
 
 	@Override
-	public void onClose() {
-		this.bar.close();
-	}
-
-	@Override
-	public void onOpen() {
+	public void onEnable() {
 		for (ServerPlayerEntity player : this.players) {
-			player.setGameMode(GameMode.ADVENTURE);
+			player.changeGameMode(GameMode.ADVENTURE);
 
 			if (player.equals(this.warden)) {
 				WardenInventoryManager.applyTo(player);
@@ -159,8 +151,10 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 	}
 
 	@Override
-	public void onAddPlayer(ServerPlayerEntity player) {
-		this.setSpectator(player);
+	public PlayerOfferResult onOfferPlayer(PlayerOffer offer) {
+		return offer.accept(this.world, SculkPrisonMap.WARDEN_SPAWN).and(() -> {
+			this.setSpectator(offer.player());
+		});
 	}
 
 	@Override
@@ -187,8 +181,8 @@ public class SculkPrisonActivePhase implements AttackEntityListener, GameCloseLi
 		}
 	}
 
-	private void setSpectator(PlayerEntity player) {
-		player.setGameMode(GameMode.SPECTATOR);
+	private void setSpectator(ServerPlayerEntity player) {
+		player.changeGameMode(GameMode.SPECTATOR);
 	}
 
 	/**
