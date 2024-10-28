@@ -16,6 +16,9 @@
 			"io.github.haykam821.sculkprison.Main"
 		]
 	},
+	"mixins": [
+		"sculkprison.mixin.json"
+	],
 	"license": "MIT",
 	"icon": "assets/sculkprison/icon.png",
 	"depends": {

@@ -2,7 +2,6 @@ package io.github.haykam821.sculkprison.game.phase;
 
 import io.github.haykam821.sculkprison.game.SculkPrisonConfig;
 import io.github.haykam821.sculkprison.game.map.SculkPrisonMap;
-import io.github.haykam821.sculkprison.game.map.SculkPrisonMapBuilder;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -34,8 +33,7 @@ public class SculkPrisonWaitingPhase implements GamePlayerEvents.Offer, PlayerDe
 	}
 
 	public static GameOpenProcedure open(GameOpenContext<SculkPrisonConfig> context) {
-		SculkPrisonMapBuilder mapBuilder = new SculkPrisonMapBuilder();
-		SculkPrisonMap map = mapBuilder.create(context.server());
+		SculkPrisonMap map = new SculkPrisonMap();
 
 		RuntimeWorldConfig worldConfig = new RuntimeWorldConfig()
 			.setGenerator(map.createGenerator(context.server()));
