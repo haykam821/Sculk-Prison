@@ -50,6 +50,7 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 
 	private int lockTime;
 	private int surviveTime;
+	private int ticksUntilClose = -1;
 
 	public SculkPrisonActivePhase(GameSpace gameSpace, ServerWorld world, SculkPrisonMap map, SculkPrisonConfig config, List<ServerPlayerEntity> players, GlobalWidgets widgets) {
 		this.world = world;
@@ -104,7 +105,7 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 	// Listeners
 	@Override
 	public ActionResult onAttackEntity(ServerPlayerEntity attacker, Hand hand, Entity attacked, EntityHitResult hitResult) {
-		if (attacker.equals(this.warden) && attacked instanceof ServerPlayerEntity) {
+		if (!this.isGameEnding() && attacker.equals(this.warden) && attacked instanceof ServerPlayerEntity) {
 			this.eliminate((ServerPlayerEntity) attacked, Text.translatable("text.sculkprison.eliminated.warden", attacked.getDisplayName(), attacker.getDisplayName()), true);
 		}
 		return ActionResult.FAIL;
@@ -125,6 +126,15 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 
 	@Override
 	public void onTick() {
+		// Decrease ticks until game end to zero
+		if (this.isGameEnding()) {
+			if (this.ticksUntilClose == 0) {
+				this.gameSpace.close(GameCloseReason.FINISHED);
+			}
+			this.ticksUntilClose -= 1;
+			return;
+		}
+
 		this.lockTime -= 1;
 		if (this.lockTime < 0) {
 			this.surviveTime -= 1;
@@ -165,7 +175,6 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 	@Override
 	public void onRemovePlayer(ServerPlayerEntity player) {
 		this.eliminate(player, true);
-		this.players.remove(player);
 	}
 
 	// Utilities
@@ -189,6 +198,8 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 	 * @param remove whether to remove the player from {@link SculkPrisonActivePhase#players}
 	 */
 	private void eliminate(ServerPlayerEntity player, Text message, boolean remove) {
+		if (this.isGameEnding()) return;
+
 		this.gameSpace.getPlayers().sendMessage(message);
 
 		if (remove) {
@@ -214,12 +225,16 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 	 */
 	private void endWithWinner(WinTeam team) {
 		this.gameSpace.getPlayers().sendMessage(team.getWinMessage());
-		this.gameSpace.close(GameCloseReason.FINISHED);
+		this.endGame();
 	}
 
 	private void endWithNoWinners() {
 		this.gameSpace.getPlayers().sendMessage(Text.translatable("text.sculkprison.no_winners").formatted(Formatting.RED));
-		this.gameSpace.close(GameCloseReason.FINISHED);
+		this.endGame();
+	}
+
+	private void endGame() {
+		this.ticksUntilClose = this.config.getTicksUntilClose().get(this.world.getRandom());
 	}
 
 	/**
@@ -243,6 +258,10 @@ public class SculkPrisonActivePhase implements PlayerAttackEntityEvent, GameActi
 
 	public int getLockTime() {
 		return this.lockTime;
+	}
+
+	private boolean isGameEnding() {
+		return this.ticksUntilClose >= 0;
 	}
 
 	/**
