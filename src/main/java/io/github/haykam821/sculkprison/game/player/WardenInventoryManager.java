@@ -1,4 +1,4 @@
-package io.github.haykam821.sculkprison.game;
+package io.github.haykam821.sculkprison.game.player;
 
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.player.PlayerInventory;
