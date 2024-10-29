@@ -8,7 +8,7 @@ import com.google.common.collect.Lists;
 import io.github.haykam821.sculkprison.Main;
 import io.github.haykam821.sculkprison.game.SculkPrisonBar;
 import io.github.haykam821.sculkprison.game.SculkPrisonConfig;
-import io.github.haykam821.sculkprison.game.event.CheckWardenListener;
+import io.github.haykam821.sculkprison.game.event.WardenDataListener;
 import io.github.haykam821.sculkprison.game.map.SculkPrisonMap;
 import io.github.haykam821.sculkprison.game.player.WardenData;
 import io.github.haykam821.sculkprison.game.player.WinTeam;
@@ -36,7 +36,7 @@ import xyz.nucleoid.plasmid.game.rule.GameRuleType;
 import xyz.nucleoid.stimuli.event.player.PlayerAttackEntityEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
-public class SculkPrisonActivePhase implements CheckWardenListener, PlayerAttackEntityEvent, GameActivityEvents.Enable, GameActivityEvents.Tick, GamePlayerEvents.Offer, PlayerDeathEvent, GamePlayerEvents.Remove {
+public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackEntityEvent, GameActivityEvents.Enable, GameActivityEvents.Tick, GamePlayerEvents.Offer, PlayerDeathEvent, GamePlayerEvents.Remove {
 	private final ServerWorld world;
 	private final GameSpace gameSpace;
 	private final SculkPrisonMap map;
@@ -59,7 +59,7 @@ public class SculkPrisonActivePhase implements CheckWardenListener, PlayerAttack
 		this.bar = new SculkPrisonBar(widgets);
 
 		this.players = players;
-		this.warden = WardenData.choose(this.players, this.world.getRandom());
+		this.warden = WardenData.choose(this, this.players, this.world.getRandom());
 		this.singleplayer = this.players.size() == 1;
 
 		this.lockTime = this.config.getLockTime();
@@ -92,7 +92,7 @@ public class SculkPrisonActivePhase implements CheckWardenListener, PlayerAttack
 			SculkPrisonActivePhase.setRules(activity, true);
 
 			// Listeners
-			activity.listen(CheckWardenListener.EVENT, phase);
+			activity.listen(WardenDataListener.EVENT, phase);
 			activity.listen(PlayerAttackEntityEvent.EVENT, phase);
 			activity.listen(GameActivityEvents.ENABLE, phase);
 			activity.listen(GameActivityEvents.TICK, phase);
@@ -104,8 +104,12 @@ public class SculkPrisonActivePhase implements CheckWardenListener, PlayerAttack
 
 	// Listeners
 	@Override
-	public boolean isWarden(ServerPlayerEntity entity) {
-		return this.warden.isOf(entity);
+	public WardenData getWardenData(ServerPlayerEntity entity) {
+		if (this.warden.isOf(entity)) {
+			return this.warden;
+		}
+
+		return null;
 	}
 
 	@Override

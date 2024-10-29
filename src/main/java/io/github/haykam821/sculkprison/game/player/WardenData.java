@@ -3,30 +3,53 @@ package io.github.haykam821.sculkprison.game.player;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 
+import io.github.haykam821.sculkprison.game.phase.SculkPrisonActivePhase;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.Angriness;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Util;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
+import net.minecraft.world.event.GameEvent;
+import net.minecraft.world.event.GameEvent.Emitter;
+import net.minecraft.world.event.Vibrations;
+import net.minecraft.world.event.listener.EntityGameEventHandler;
 
-public class WardenData {
+public class WardenData implements Vibrations {
+	private static final int MAX_VIBRATION_COOLDOWN = 40;
+
+	private final SculkPrisonActivePhase phase;
 	private final ServerPlayerEntity player;
+
+	private final Vibrations.ListenerData vibrationListenerData = new Vibrations.ListenerData();
+	private final Vibrations.Callback vibrationCallback;
+	private final EntityGameEventHandler<Vibrations.VibrationListener> gameEventHandler = new EntityGameEventHandler<>(new Vibrations.VibrationListener(this));
+
+	private int vibrationCooldown;
 
 	private int ambientSoundChance;
 
-	private WardenData(ServerPlayerEntity player) {
+	private WardenData(SculkPrisonActivePhase phase, ServerPlayerEntity player) {
+		this.phase = Objects.requireNonNull(phase);
 		this.player = Objects.requireNonNull(player);
+
+		this.vibrationCallback = new WardenVibrationCallback(this, this.player);
 	}
 
 	public void initialize() {
 		WardenInventoryManager.applyTo(player);
 		player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, StatusEffectInstance.INFINITE, 1, true, false));
+
+		this.player.updateEventHandler(EntityGameEventHandler::onEntitySetPosCallback);
 }
 
 	public void tick() {
@@ -40,9 +63,15 @@ public class WardenData {
 		if (this.player.age % this.getHeartRate() == 0) {
 			this.playSound(SoundEvents.ENTITY_WARDEN_HEARTBEAT, 5);
 		}
+
+		if (this.vibrationCooldown > 0) {
+			this.setVibrationCooldown(this.vibrationCooldown - 1);
+		}
+
+		Vibrations.Ticker.tick(this.player.getWorld(), this.vibrationListenerData, this.vibrationCallback);
 	}
 
-	public boolean isOf(ServerPlayerEntity player) {
+	public boolean isOf(Entity player) {
 		return this.player.equals(player);
 	}
 
@@ -63,8 +92,49 @@ public class WardenData {
 		return 0;
 	}
 
-	public static WardenData choose(List<ServerPlayerEntity> players, Random random) {
+	public void setVibrationCooldown(int vibrationCooldown) {
+		int clampedCooldown = Math.max(0, vibrationCooldown);
+
+		if (clampedCooldown == 0 && this.vibrationCooldown > 0) {
+			WardenInventoryManager.applyHelmet(player);
+		} else if (clampedCooldown > 0 && this.vibrationCooldown == 0) {
+			WardenInventoryManager.applyActiveHelmet(player);
+		}
+
+		this.vibrationCooldown = clampedCooldown;
+	}
+
+	@Override
+	public Vibrations.ListenerData getVibrationListenerData() {
+		return this.vibrationListenerData;
+	}
+
+	@Override
+	public Vibrations.Callback getVibrationCallback() {
+		return this.vibrationCallback;
+	}
+
+	public void updateEventHandler(BiConsumer<EntityGameEventHandler<?>, ServerWorld> callback) {
+		callback.accept(this.gameEventHandler, this.player.getServerWorld());
+	}
+
+	public boolean canProduceVibration(ServerWorld world, BlockPos pos, GameEvent event, Emitter emitter) {
+		if (this.vibrationCooldown > 0) return false;
+		if (this.phase.getLockTime() > 0) return false;
+
+		if (this.isOf(emitter.sourceEntity())) return false;
+		if (!(emitter.sourceEntity() instanceof ServerPlayerEntity)) return false;
+
+		return true;
+	}
+
+	protected void acceptGameEvent(ServerWorld world, BlockPos pos, GameEvent event, Entity sourceEntity, Entity entity, float distance) {
+		this.setVibrationCooldown(MAX_VIBRATION_COOLDOWN);
+		this.playSound(SoundEvents.ENTITY_WARDEN_TENDRIL_CLICKS, 5);
+	}
+
+	public static WardenData choose(SculkPrisonActivePhase phase, List<ServerPlayerEntity> players, Random random) {
 		ServerPlayerEntity player = Util.getRandom(players, random);
-		return new WardenData(player);
+		return new WardenData(phase, player);
 	}
 }
