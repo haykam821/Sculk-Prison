@@ -1,11 +1,15 @@
 package io.github.haykam821.sculkprison.game.player;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
 import io.github.haykam821.sculkprison.game.phase.SculkPrisonActivePhase;
+import it.unimi.dsi.fastutil.objects.Object2IntMap;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import net.minecraft.SharedConstants;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -25,7 +29,14 @@ import net.minecraft.world.event.Vibrations;
 import net.minecraft.world.event.listener.EntityGameEventHandler;
 
 public class WardenData implements Vibrations {
-	private static final int MAX_VIBRATION_COOLDOWN = 40;
+	private static final int ANGRINESS_INCREASE = 35;
+	private static final int MINOR_ANGRINESS_INCREASE = 10;
+
+	private static final int MAX_ANGER = 150;
+
+	private static final int ANGER_DECREMENT_INTERVAL = SharedConstants.TICKS_PER_SECOND;
+
+	private static final int MAX_VIBRATION_COOLDOWN = SharedConstants.TICKS_PER_SECOND * 2;
 
 	private final SculkPrisonActivePhase phase;
 	private final ServerPlayerEntity player;
@@ -33,6 +44,11 @@ public class WardenData implements Vibrations {
 	private final Vibrations.ListenerData vibrationListenerData = new Vibrations.ListenerData();
 	private final Vibrations.Callback vibrationCallback;
 	private final EntityGameEventHandler<Vibrations.VibrationListener> gameEventHandler = new EntityGameEventHandler<>(new Vibrations.VibrationListener(this));
+
+	private final Object2IntMap<Entity> suspectsToAngerLevel = new Object2IntOpenHashMap<>();
+
+	private int maximumAnger;
+	private boolean angerDirty;
 
 	private int vibrationCooldown;
 
@@ -64,6 +80,12 @@ public class WardenData implements Vibrations {
 			this.playSound(SoundEvents.ENTITY_WARDEN_HEARTBEAT, 5);
 		}
 
+		if (this.player.age % ANGER_DECREMENT_INTERVAL == 0) {
+			for (Entity entity : this.suspectsToAngerLevel.keySet()) {
+				this.setAnger(entity, this.suspectsToAngerLevel.getInt(entity) - 1, false);
+			}
+		}
+
 		if (this.vibrationCooldown > 0) {
 			this.setVibrationCooldown(this.vibrationCooldown - 1);
 		}
@@ -89,7 +111,37 @@ public class WardenData implements Vibrations {
 	}
 
 	private int getAnger() {
-		return 0;
+		if (this.angerDirty) {
+			this.maximumAnger = this.suspectsToAngerLevel.object2IntEntrySet().stream()
+				.map(Object2IntMap.Entry::getIntValue)
+				.max(Comparator.comparingInt(value -> value))
+				.orElse(0);
+
+			this.angerDirty = false;
+		}
+
+		return this.maximumAnger;
+	}
+
+	private void addAnger(Entity entity, int amount, boolean updateMaximumAnger) {
+		this.setAnger(entity, this.suspectsToAngerLevel.getInt(entity) + amount, updateMaximumAnger);
+	}
+
+	private void setAnger(Entity entity, int amount, boolean updateMaximumAnger) {
+		if (entity != null) {
+			int clampedAmount = MathHelper.clamp(amount, 0, MAX_ANGER);
+
+			if (clampedAmount != 0) {
+				int oldAmount = this.suspectsToAngerLevel.put(entity, clampedAmount);
+
+				if (clampedAmount != oldAmount) {
+					this.angerDirty = true;
+				}
+			} else if (this.suspectsToAngerLevel.containsKey(entity)) {
+				this.suspectsToAngerLevel.removeInt(entity);
+				this.angerDirty = true;
+			}
+		}
 	}
 
 	public void setVibrationCooldown(int vibrationCooldown) {
@@ -131,6 +183,13 @@ public class WardenData implements Vibrations {
 	protected void acceptGameEvent(ServerWorld world, BlockPos pos, GameEvent event, Entity sourceEntity, Entity entity, float distance) {
 		this.setVibrationCooldown(MAX_VIBRATION_COOLDOWN);
 		this.playSound(SoundEvents.ENTITY_WARDEN_TENDRIL_CLICKS, 5);
+
+		if (entity instanceof ServerPlayerEntity) {
+			int angerIncrease = this.player.isInRange(entity, 30) ? ANGRINESS_INCREASE : MINOR_ANGRINESS_INCREASE;
+			this.addAnger(entity, angerIncrease, true);
+		} else {
+			this.addAnger(sourceEntity, ANGRINESS_INCREASE, true);
+		}
 	}
 
 	public static WardenData choose(SculkPrisonActivePhase phase, List<ServerPlayerEntity> players, Random random) {
