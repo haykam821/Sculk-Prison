@@ -1,5 +1,6 @@
 {
 	"type": "sculkprison:sculk_prison",
+	"icon": "minecraft:echo_shard",
 	"players": {
 		"min": 1,
 		"max": 32,
