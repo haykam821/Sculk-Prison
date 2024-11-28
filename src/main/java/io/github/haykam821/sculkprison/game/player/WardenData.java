@@ -3,10 +3,14 @@ package io.github.haykam821.sculkprison.game.player;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.BiConsumer;
+
+import com.google.common.collect.EvictingQueue;
 
 import io.github.haykam821.sculkprison.game.phase.SculkPrisonActivePhase;
 import io.github.haykam821.sculkprison.game.player.target.SonicBoomTarget;
@@ -16,6 +20,7 @@ import io.github.haykam821.sculkprison.game.player.target.TrackingSonicBoomTarge
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.minecraft.SharedConstants;
+import net.minecraft.block.entity.SculkSpreadManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -55,6 +60,10 @@ public class WardenData implements Vibrations {
 	private final SculkPrisonActivePhase phase;
 	private final ServerPlayerEntity player;
 
+	private final SculkSpreadManager spreadManager = SculkSpreadHelper.createSpreadManager();
+	private final Set<BlockPos> spreadRoots = new HashSet<>();
+	private final EvictingQueue<BlockPos> breadcrumbs = EvictingQueue.create(SculkSpreadHelper.MAX_BREADCRUMBS);
+
 	private final Vibrations.ListenerData vibrationListenerData = new Vibrations.ListenerData();
 	private final Vibrations.Callback vibrationCallback;
 	private final EntityGameEventHandler<Vibrations.VibrationListener> gameEventHandler = new EntityGameEventHandler<>(new Vibrations.VibrationListener(this));
@@ -86,7 +95,35 @@ public class WardenData implements Vibrations {
 }
 
 	public void tick() {
-		if (this.player.getRandom().nextInt(1000) < this.ambientSoundChance) {
+		ServerWorld world = this.player.getServerWorld();
+		Random random = this.player.getRandom();
+
+		if (this.phase.getLockTime() <= 0) {
+			if (random.nextInt(SculkSpreadHelper.SPREAD_CHANCE_PER_TICK) == 0) {
+				List<BlockPos> positions = new ArrayList<>();
+
+				positions.addAll(this.spreadRoots);
+
+				for (int index = 0; index < SculkSpreadHelper.BREADCRUMB_BIAS; index += 1) {
+					positions.addAll(this.breadcrumbs);
+				}
+
+				Util.getRandomOrEmpty(positions, random).ifPresent(pos -> {
+					this.breadcrumbs.remove(pos);
+					this.spreadManager.spread(pos, SculkSpreadHelper.getCharge(random));
+				});
+			} else if (random.nextInt(SculkSpreadHelper.RECORD_BREADCRUMB_CHANCE_PER_TICK) == 0) {
+				BlockPos pos = SculkSpreadHelper.findSculkSpreadPos(this.spreadManager, world, this.player.getBlockPos());
+
+				if (pos != null) {
+					this.breadcrumbs.add(pos);
+				}
+			}
+
+			this.spreadManager.tick(world, this.player.getBlockPos(), random, true);
+		}
+
+		if (random.nextInt(1000) < this.ambientSoundChance) {
 			this.ambientSoundChance = -80;
 			this.playSound(SoundEvents.ENTITY_WARDEN_AMBIENT, 4);
 		} else {
@@ -107,7 +144,7 @@ public class WardenData implements Vibrations {
 			this.setVibrationCooldown(this.vibrationCooldown - 1);
 		}
 
-		Vibrations.Ticker.tick(this.player.getWorld(), this.vibrationListenerData, this.vibrationCallback);
+		Vibrations.Ticker.tick(world, this.vibrationListenerData, this.vibrationCallback);
 
 		for (SonicBoomTarget target : this.sonicBoomTargets) {
 			target.tick();

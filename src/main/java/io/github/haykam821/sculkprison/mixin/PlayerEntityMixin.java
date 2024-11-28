@@ -85,6 +85,21 @@ public abstract class PlayerEntityMixin extends LivingEntity implements Vibratio
 	}
 
 	@Override
+	public boolean occludeVibrationSignals() {
+		if ((Object) this instanceof ServerPlayerEntity player) {
+			try (EventInvokers invokers = Stimuli.select().forEntity(player)) {
+				WardenData warden = invokers.get(WardenDataListener.EVENT).getWardenData(player);
+
+				if (warden != null) {
+					return true;
+				}
+			}
+		}
+
+		return super.occludeVibrationSignals();
+	}
+
+	@Override
 	public Vibrations.ListenerData getVibrationListenerData() {
 		if ((Object) this instanceof ServerPlayerEntity player) {
 			try (EventInvokers invokers = Stimuli.select().forEntity(player)) {
