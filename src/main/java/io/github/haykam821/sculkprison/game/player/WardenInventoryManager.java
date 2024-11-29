@@ -5,46 +5,56 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemConvertible;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.network.ServerPlayerEntity;
-import xyz.nucleoid.plasmid.util.ItemStackBuilder;
+import xyz.nucleoid.plasmid.api.util.ItemStackBuilder;
 
 public class WardenInventoryManager {
-	public static final ItemStack HELMET = WardenInventoryManager.createArmorStack(Items.LEATHER_HELMET, false);
-	public static final ItemStack CHESTPLATE = WardenInventoryManager.createArmorStack(Items.LEATHER_CHESTPLATE, false);
-	public static final ItemStack LEGGINGS = WardenInventoryManager.createArmorStack(Items.LEATHER_LEGGINGS, false);
-	public static final ItemStack BOOTS = WardenInventoryManager.createArmorStack(Items.LEATHER_BOOTS, false);
+	private final ItemStack helmet;
+	private final ItemStack chestplate;
+	private final ItemStack leggings;
+	private final ItemStack boots;
 
-	public static final ItemStack ACTIVE_HELMET = WardenInventoryManager.createArmorStack(Items.LEATHER_HELMET, true);
+	private final ItemStack activeHelmet;
+
+	public WardenInventoryManager(RegistryWrapper.WrapperLookup registries) {
+		this.helmet = WardenInventoryManager.createArmorStack(registries, Items.LEATHER_HELMET, false);
+		this.chestplate = WardenInventoryManager.createArmorStack(registries, Items.LEATHER_CHESTPLATE, false);
+		this.leggings = WardenInventoryManager.createArmorStack(registries, Items.LEATHER_LEGGINGS, false);
+		this.boots = WardenInventoryManager.createArmorStack(registries, Items.LEATHER_BOOTS, false);
+
+		this.activeHelmet = WardenInventoryManager.createArmorStack(registries, Items.LEATHER_HELMET, true);
+	}
 
 	private static void updateInventory(ServerPlayerEntity player) {
 		player.currentScreenHandler.sendContentUpdates();
 		player.playerScreenHandler.onContentChanged(player.getInventory());
 	}
 
-	public static void applyTo(ServerPlayerEntity player) {
+	public void applyTo(ServerPlayerEntity player) {
 		PlayerInventory inventory = player.getInventory();
 
-		inventory.armor.set(3, HELMET.copy());
-		inventory.armor.set(2, CHESTPLATE.copy());
-		inventory.armor.set(1, LEGGINGS.copy());
-		inventory.armor.set(0, BOOTS.copy());
+		inventory.armor.set(3, this.helmet.copy());
+		inventory.armor.set(2, this.chestplate.copy());
+		inventory.armor.set(1, this.leggings.copy());
+		inventory.armor.set(0, this.boots.copy());
 
 		WardenInventoryManager.updateInventory(player);
 	}
 
-	public static void applyHelmet(ServerPlayerEntity player) {
-		player.getInventory().armor.set(3, HELMET.copy());
+	public void applyHelmet(ServerPlayerEntity player) {
+		player.getInventory().armor.set(3, this.helmet.copy());
 		WardenInventoryManager.updateInventory(player);
 	}
 
-	public static void applyActiveHelmet(ServerPlayerEntity player) {
-		player.getInventory().armor.set(3, ACTIVE_HELMET.copy());
+	public void applyActiveHelmet(ServerPlayerEntity player) {
+		player.getInventory().armor.set(3, this.activeHelmet.copy());
 		WardenInventoryManager.updateInventory(player);
 	}
 
-	private static ItemStack createArmorStack(ItemConvertible item, boolean active) {
+	private static ItemStack createArmorStack(RegistryWrapper.WrapperLookup registries, ItemConvertible item, boolean active) {
 		return ItemStackBuilder.of(item)
-			.addEnchantment(Enchantments.BINDING_CURSE, 1)
+			.addEnchantment(registries, Enchantments.BINDING_CURSE, 1)
 			.setDyeColor(active ? WardenColors.ACTIVE_ARMOR : WardenColors.INACTIVE_ARMOR)
 			.setUnbreakable()
 			.build();
