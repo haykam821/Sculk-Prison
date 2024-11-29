@@ -12,6 +12,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.structure.StructureLiquidSettings;
 import net.minecraft.structure.StructurePiece;
 import net.minecraft.structure.StructureTemplateManager;
 import net.minecraft.structure.pool.StructurePool;
@@ -30,17 +31,19 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.noise.NoiseConfig;
+import net.minecraft.world.gen.structure.DimensionPadding;
 import net.minecraft.world.gen.structure.Structure;
 import net.minecraft.world.gen.structure.Structure.StructurePosition;
-import xyz.nucleoid.plasmid.game.world.generator.GameChunkGenerator;
+import xyz.nucleoid.plasmid.api.game.world.generator.GameChunkGenerator;
 
 public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 	private static final BlockPos ORIGIN = new BlockPos(0, 64, 0);
+	private static final DimensionPadding PADDING = new DimensionPadding(Integer.MAX_VALUE);
 
 	private static final int MAX_DEPTH = 16;
 	private static final int MAX_DISTANCE_FROM_CENTER = 1024;
 
-	private static final Identifier PRISON_STARTS_ID = new Identifier(Main.MOD_ID, "prison_starts");
+	private static final Identifier PRISON_STARTS_ID = Main.identifier("prison_starts");
 	private static final RegistryKey<StructurePool> PRISON_STARTS = RegistryKey.of(RegistryKeys.TEMPLATE_POOL, PRISON_STARTS_ID);
 
 	private final Long2ObjectMap<List<StructurePiece>> piecesByChunk = new Long2ObjectOpenHashMap<>();
@@ -60,9 +63,9 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 		HeightLimitView heightLimitView = new ChunkGeneratorHeightLimitView(this);
 
 		Structure.Context context = new Structure.Context(registryManager, this, this.getBiomeSource(), noiseConfig, structureManager, random, seed, chunkPos, heightLimitView, biome -> true);
-		RegistryEntry<StructurePool> structurePool = registryManager.get(RegistryKeys.TEMPLATE_POOL).getEntry(PRISON_STARTS).orElseThrow();
+		RegistryEntry<StructurePool> structurePool = registryManager.getOrThrow(RegistryKeys.TEMPLATE_POOL).getOrThrow(PRISON_STARTS);
 
-		StructurePosition structurePosition = StructurePoolBasedGenerator.generate(context, structurePool, Optional.empty(), MAX_DEPTH, ORIGIN, false, Optional.empty(), MAX_DISTANCE_FROM_CENTER, StructurePoolAliasLookup.EMPTY).orElseThrow();
+		StructurePosition structurePosition = StructurePoolBasedGenerator.generate(context, structurePool, Optional.empty(), MAX_DEPTH, ORIGIN, false, Optional.empty(), MAX_DISTANCE_FROM_CENTER, StructurePoolAliasLookup.EMPTY, PADDING, StructureLiquidSettings.APPLY_WATERLOGGING).orElseThrow();
 		this.addStructurePieces(structurePosition.generate().toList().pieces());
 	}
 
@@ -113,7 +116,7 @@ public final class SculkPrisonChunkGenerator extends GameChunkGenerator {
 		int minZ = pos.getStartZ();
 
 		int maxX = pos.getEndX();
-		int maxY = chunk.getTopY();
+		int maxY = chunk.getTopYInclusive();
 		int maxZ = pos.getEndZ();
 
 		return new BlockBox(minX, minY, minZ, maxX, maxY, maxZ);

@@ -2,6 +2,7 @@ package io.github.haykam821.sculkprison.game.phase;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import com.google.common.collect.Lists;
 
@@ -17,26 +18,27 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
-import xyz.nucleoid.plasmid.game.GameActivity;
-import xyz.nucleoid.plasmid.game.GameCloseReason;
-import xyz.nucleoid.plasmid.game.GameSpace;
-import xyz.nucleoid.plasmid.game.common.GlobalWidgets;
-import xyz.nucleoid.plasmid.game.event.GameActivityEvents;
-import xyz.nucleoid.plasmid.game.event.GamePlayerEvents;
-import xyz.nucleoid.plasmid.game.player.PlayerOffer;
-import xyz.nucleoid.plasmid.game.player.PlayerOfferResult;
-import xyz.nucleoid.plasmid.game.rule.GameRuleType;
+import xyz.nucleoid.plasmid.api.game.GameActivity;
+import xyz.nucleoid.plasmid.api.game.GameCloseReason;
+import xyz.nucleoid.plasmid.api.game.GameSpace;
+import xyz.nucleoid.plasmid.api.game.common.GlobalWidgets;
+import xyz.nucleoid.plasmid.api.game.event.GameActivityEvents;
+import xyz.nucleoid.plasmid.api.game.event.GamePlayerEvents;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptor;
+import xyz.nucleoid.plasmid.api.game.player.JoinAcceptorResult;
+import xyz.nucleoid.plasmid.api.game.player.JoinOffer;
+import xyz.nucleoid.plasmid.api.game.rule.GameRuleType;
+import xyz.nucleoid.stimuli.event.EventResult;
 import xyz.nucleoid.stimuli.event.player.PlayerAttackEntityEvent;
 import xyz.nucleoid.stimuli.event.player.PlayerDeathEvent;
 
-public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackEntityEvent, GameActivityEvents.Enable, GameActivityEvents.Tick, GamePlayerEvents.Offer, PlayerDeathEvent, GamePlayerEvents.Remove {
+public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackEntityEvent, GameActivityEvents.Enable, GameActivityEvents.Tick, GamePlayerEvents.Accept, PlayerDeathEvent, GamePlayerEvents.Remove {
 	private final ServerWorld world;
 	private final GameSpace gameSpace;
 	private final SculkPrisonMap map;
@@ -88,7 +90,7 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 		gameSpace.setActivity(activity -> {
 			GlobalWidgets widgets = GlobalWidgets.addTo(activity);
 
-			SculkPrisonActivePhase phase = new SculkPrisonActivePhase(gameSpace, world, map, config, Lists.newArrayList(gameSpace.getPlayers()), widgets);
+			SculkPrisonActivePhase phase = new SculkPrisonActivePhase(gameSpace, world, map, config, Lists.newArrayList(gameSpace.getPlayers().participants()), widgets);
 			SculkPrisonActivePhase.setRules(activity, true);
 
 			// Listeners
@@ -96,7 +98,8 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 			activity.listen(PlayerAttackEntityEvent.EVENT, phase);
 			activity.listen(GameActivityEvents.ENABLE, phase);
 			activity.listen(GameActivityEvents.TICK, phase);
-			activity.listen(GamePlayerEvents.OFFER, phase);
+			activity.listen(GamePlayerEvents.ACCEPT, phase);
+			activity.listen(GamePlayerEvents.OFFER, JoinOffer::acceptSpectators);
 			activity.listen(PlayerDeathEvent.EVENT, phase);
 			activity.listen(GamePlayerEvents.REMOVE, phase);
 		});
@@ -113,11 +116,11 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 	}
 
 	@Override
-	public ActionResult onAttackEntity(ServerPlayerEntity attacker, Hand hand, Entity attacked, EntityHitResult hitResult) {
+	public EventResult onAttackEntity(ServerPlayerEntity attacker, Hand hand, Entity attacked, EntityHitResult hitResult) {
 		if (!this.isGameEnding() && this.warden.isOf(attacker) && attacked instanceof ServerPlayerEntity) {
 			this.eliminate((ServerPlayerEntity) attacked, Text.translatable("text.sculkprison.eliminated.warden", attacked.getDisplayName(), attacker.getDisplayName()), true);
 		}
-		return ActionResult.FAIL;
+		return EventResult.DENY;
 	}
 
 	@Override
@@ -128,6 +131,11 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 		}
 
 		this.warden.initialize();
+
+		for (ServerPlayerEntity player : this.gameSpace.getPlayers().spectators()) {
+			player.changeGameMode(GameMode.SPECTATOR);
+			SculkPrisonActivePhase.spawn(this.world, this.map, player, false);
+		}
 	}
 
 	@Override
@@ -168,16 +176,16 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 	}
 
 	@Override
-	public PlayerOfferResult onOfferPlayer(PlayerOffer offer) {
-		return offer.accept(this.world, SculkPrisonMap.WARDEN_SPAWN).and(() -> {
-			this.setSpectator(offer.player());
+	public JoinAcceptorResult onAcceptPlayers(JoinAcceptor acceptor) {
+		return acceptor.teleport(this.world, SculkPrisonMap.WARDEN_SPAWN).thenRunForEach(player -> {
+			this.setSpectator(player);
 		});
 	}
 
 	@Override
-	public ActionResult onDeath(ServerPlayerEntity player, DamageSource source) {
+	public EventResult onDeath(ServerPlayerEntity player, DamageSource source) {
 		SculkPrisonActivePhase.spawn(this.world, this.map, player, this.warden.isOf(player));
-		return ActionResult.FAIL;
+		return EventResult.DENY;
 	}
 
 	@Override
@@ -284,6 +292,6 @@ public class SculkPrisonActivePhase implements WardenDataListener, PlayerAttackE
 	 */
 	public static void spawn(ServerWorld world, SculkPrisonMap map, ServerPlayerEntity player, boolean warden) {
 		Vec3d pos = warden ? SculkPrisonMap.WARDEN_SPAWN : SculkPrisonMap.SPAWN;
-		player.teleport(world, pos.getX(), pos.getY(), pos.getZ(), 0, 0);
+		player.teleport(world, pos.getX(), pos.getY(), pos.getZ(), Set.of(), 0, 0, true);
 	}
 }

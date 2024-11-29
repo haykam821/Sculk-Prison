@@ -27,6 +27,7 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.Angriness;
 import net.minecraft.particle.ParticleTypes;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -60,6 +61,8 @@ public class WardenData implements Vibrations {
 	private final SculkPrisonActivePhase phase;
 	private final ServerPlayerEntity player;
 
+	private final WardenInventoryManager inventoryManager;
+
 	private final SculkSpreadManager spreadManager = SculkSpreadHelper.createSpreadManager();
 	private final Set<BlockPos> spreadRoots = new HashSet<>();
 	private final EvictingQueue<BlockPos> breadcrumbs = EvictingQueue.create(SculkSpreadHelper.MAX_BREADCRUMBS);
@@ -84,11 +87,13 @@ public class WardenData implements Vibrations {
 		this.phase = Objects.requireNonNull(phase);
 		this.player = Objects.requireNonNull(player);
 
+		this.inventoryManager = new WardenInventoryManager(this.player.getRegistryManager());
+
 		this.vibrationCallback = new WardenVibrationCallback(this, this.player);
 	}
 
 	public void initialize() {
-		WardenInventoryManager.applyTo(player);
+		this.inventoryManager.applyTo(player);
 		player.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, StatusEffectInstance.INFINITE, 1, true, false));
 
 		this.player.updateEventHandler(EntityGameEventHandler::onEntitySetPosCallback);
@@ -184,7 +189,7 @@ public class WardenData implements Vibrations {
 			this.phase.eliminate(player, Text.translatable("text.sculkprison.eliminated.sonic_boom", player.getDisplayName(), this.player.getDisplayName()), false);
 			iterator.remove();
 
-			double knockbackResistance = player.getAttributeValue(EntityAttributes.GENERIC_KNOCKBACK_RESISTANCE);
+			double knockbackResistance = player.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE);
 
 			double horizontalKnockbackScale = 2.5 * (1.0 - knockbackResistance);
 			double verticalKnockbackScale = 0.5 * (1.0 - knockbackResistance);
@@ -312,9 +317,9 @@ public class WardenData implements Vibrations {
 		int clampedCooldown = Math.max(0, vibrationCooldown);
 
 		if (clampedCooldown == 0 && this.vibrationCooldown > 0) {
-			WardenInventoryManager.applyHelmet(player);
+			this.inventoryManager.applyHelmet(player);
 		} else if (clampedCooldown > 0 && this.vibrationCooldown == 0) {
-			WardenInventoryManager.applyActiveHelmet(player);
+			this.inventoryManager.applyActiveHelmet(player);
 		}
 
 		this.vibrationCooldown = clampedCooldown;
@@ -334,7 +339,7 @@ public class WardenData implements Vibrations {
 		callback.accept(this.gameEventHandler, this.player.getServerWorld());
 	}
 
-	public boolean canProduceVibration(ServerWorld world, BlockPos pos, GameEvent event, Emitter emitter) {
+	public boolean canProduceVibration(ServerWorld world, BlockPos pos, RegistryEntry<GameEvent> event, Emitter emitter) {
 		if (this.vibrationCooldown > 0) return false;
 		if (this.phase.getLockTime() > 0) return false;
 
@@ -344,7 +349,7 @@ public class WardenData implements Vibrations {
 		return true;
 	}
 
-	protected void acceptGameEvent(ServerWorld world, BlockPos pos, GameEvent event, Entity sourceEntity, Entity entity, float distance) {
+	protected void acceptGameEvent(ServerWorld world, BlockPos pos, RegistryEntry<GameEvent> event, Entity sourceEntity, Entity entity, float distance) {
 		this.setVibrationCooldown(MAX_VIBRATION_COOLDOWN);
 		this.playSound(SoundEvents.ENTITY_WARDEN_TENDRIL_CLICKS, 5);
 

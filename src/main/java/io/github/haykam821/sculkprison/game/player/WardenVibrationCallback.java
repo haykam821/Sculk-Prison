@@ -1,6 +1,7 @@
 package io.github.haykam821.sculkprison.game.player;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.GameEventTags;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -38,12 +39,12 @@ public class WardenVibrationCallback implements Vibrations.Callback {
 	}
 
 	@Override
-	public boolean accepts(ServerWorld world, BlockPos pos, GameEvent event, GameEvent.Emitter emitter) {
+	public boolean accepts(ServerWorld world, BlockPos pos, RegistryEntry<GameEvent> event, GameEvent.Emitter emitter) {
 		return this.warden.canProduceVibration(world, pos, event, emitter);
 	}
 
 	@Override
-	public void accept(ServerWorld world, BlockPos pos, GameEvent event, Entity sourceEntity, Entity entity, float distance) {
+	public void accept(ServerWorld world, BlockPos pos, RegistryEntry<GameEvent> event, Entity sourceEntity, Entity entity, float distance) {
 		this.warden.acceptGameEvent(world, pos, event, sourceEntity, entity, distance);
 	}
 }
